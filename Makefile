@@ -1,6 +1,6 @@
 baud=19200
 src=ultrasonic
-avrType=attiny85
+avrType=atmega328p
 avrFreq=1000000UL # 1MHz for accurate baudrate timing
 #programmerDev=/dev/ttyUSB003 No usbserial device for USBTiny
 programmerType=usbtiny
@@ -16,7 +16,7 @@ help:
 		@echo 'clean				Delete automatically created files.'
 		@echo 'disassemble	Compile source code, then disassemble object file to mnemonics.'
 		@echo 'dumpelf			Dump the contents of the .elf file. Useful for information purposes only.'
-		@echo 'edit					Edit the .cpp source file.'
+		@echo 'edit					Edit the .c source file.'
 		@echo 'eeprom				Extract EEPROM data from .elf file and program the device with it.'
 		@echo 'elf					Create $(src).elf'
 		@echo 'flash				Program $(src).hex to controller flash memory.'
@@ -27,7 +27,7 @@ help:
 		@echo 'program			Do all programming to controller.'
 
 edit:
-		vi $(src).cpp
+		vi $(src).c
 
 makefile:
 		vi Makefile
@@ -35,14 +35,18 @@ makefile:
 #all: object elf hex
 
 clean:
-		rm $(src).elf $(src).eeprom.hex $(src).fuses.hex $(src).lfuse.hex $(src).hfuse.hex $(src).efuse.hex $(src).flash.hex $(src).o
+		rm twi.o twi.lst libtwi.a
+		rm $(src).lst $(src).elf $(src).eeprom.hex $(src).fuses.hex $(src).lfuse.hex $(src).hfuse.hex $(src).efuse.hex $(src).flash.hex $(src).o
 		date
 
 object:
-		avr-gcc $(cflags) -mmcu=$(avrType) -Wa,-ahlmns=$(src).lst -c -o $(src).o $(src).cpp
+		avr-gcc $(cflags) -mmcu=$(avrType) -Wa,-ahlmns=twi.lst -o twi.o -c twi.c
+		avr-ar rcsv libtwi.a twi.o
+		avr-ranlib libtwi.a
+		avr-gcc $(cflags) -mmcu=$(avrType) -Wa,-ahlmns=$(src).lst -o $(src).o -c $(src).c
 
 elf: object
-		avr-gcc $(cflags) -mmcu=$(avrType) -o $(src).elf $(src).o
+		avr-gcc $(cflags) -mmcu=$(avrType) -o $(src).elf $(src).o libtwi.a
 		chmod a-x $(src).elf 2>&1
 
 hex:    elf
