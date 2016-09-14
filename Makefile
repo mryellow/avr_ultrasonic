@@ -1,7 +1,7 @@
 baud=19200
 src=ultrasonic
 avrType=atmega328p
-avrFreq=1000000UL # 1MHz for accurate baudrate timing
+avrFreq=8000000UL # 8MHz for accurate baudrate timing
 #programmerDev=/dev/ttyUSB003 No usbserial device for USBTiny
 programmerType=usbtiny
 
@@ -66,6 +66,8 @@ eeprom: hex
 		date
 
 fuses: hex
+		# Clock div by 1, 8MHz
+		avrdude -p$(avrType) -c$(programmerType) -b$(baud) -v -U lfuse:w:0xe2:m #-U hfuse:w:0xd9:m -U efuse:w:0xff:m
 		#avrdude -p$(avrType) -c$(programmerType) -P$(programmerDev) -b$(baud) -v -U lfuse:w:$(src).lfuse.hex
 		#avrdude -p$(avrType) -c$(programmerType) -b$(baud) -v -U lfuse:w:$(src).lfuse.hex
 		#avrdude -p$(avrType) -c$(programmerType) -P$(programmerDev) -b$(baud) -v -U hfuse:w:$(src).hfuse.hex
