@@ -23,7 +23,7 @@ uint8_t I2C_buffer[SENSOR_NUM];
 void handle_I2C_interrupt(volatile uint8_t TWI_match_addr, uint8_t status);
 
 static volatile uint8_t pulse_length = 0;
-static volatile uint8_t result;
+static volatile uint8_t result = 0;
 
 // Measurement Timer Interrupt
 // Counts in centimetres
@@ -45,12 +45,10 @@ ISR(PCINT0_vect) {
   if (PINB & _BV(ECHO_PIN)) {  // Pulse start
     // Leaving timer running for other sensors
     //TCNT1 = 0;
-    // TODO: Reset array item
     pulse_length = 0;
   // low
   } else { // Pulse end
-    // TODO: Store in array
-    result = pulse_length;
+    I2C_buffer[0] = pulse_length;
   }
 }
 
@@ -80,22 +78,13 @@ void sensor_setup(void) {
 
 // TODO: `trigger(port)`
 void trigger(void) {
-  //result = 0;
-
   // Trig pulse
   PORTB |= _BV(TRIG_PIN);
   _delay_us(TRIG_LENGTH);
   PORTB &= ~_BV(TRIG_PIN);
-
-  // Wait for echo
-  //_delay_ms(MEASURE_TIME_MS);
-
-  //if (result > 400)
-  //  result = 0;
 }
 
 int main(void) {
-  //static char res[8];
 
   // Initialize I2C
   // http://www.nerdkits.com/forum/thread/1554/
@@ -119,8 +108,6 @@ int main(void) {
   // TODO: Timer which triggers sensors in-turn, times them out too.. Use a timer?
   while(1) {
     trigger();
-    //utoa(result, res, 10);
-    //uart_puts(res);
 
     // Wait for echo
     _delay_ms(MEASURE_TIME_MS);
@@ -128,18 +115,12 @@ int main(void) {
   }
 }
 
+/*
+// Write then read.
 void handle_I2C_interrupt(volatile uint8_t TWI_match_addr, uint8_t status){
-    if (status == TWI_success) {
-        // increment the integer in the buffer
-        // and it will be returned during the read cycle
-        //(*(int*)I2C_buffer)++;
-        // TODO: Query each sensor with address contained in `I2C_buffer`
-        if (TWI_match_addr !== I2C_SLAVE_ADDRESS) return;
-
-        //uint8_t buf[4];
-        //inttolitend(result, I2C_buffer);
-        I2C_buffer[0] = result;
-        // Set buffer to be returned on next read cycle
-        //I2C_buffer = result;
+    if (TWI_match_addr == I2C_SLAVE_ADDRESS && status == TWI_success) {
+      // Set buffer to be returned on next read cycle
+      I2C_buffer[0] = result;
     }
 }
+*/
