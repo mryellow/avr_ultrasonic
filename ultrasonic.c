@@ -8,6 +8,8 @@
 
 //#define F_CPU			8000000UL
 
+#define SENSOR_NUM 1
+
 #define TRIG_PIN  PB1
 #define ECHO_PIN  PB2
 
@@ -16,7 +18,7 @@
 #define MEASURE_TIME_MS 50 // Measurement interval
 
 // settings for I2C
-uint8_t I2C_buffer[25];
+uint8_t I2C_buffer[SENSOR_NUM];
 #define I2C_SLAVE_ADDRESS 0x10
 void handle_I2C_interrupt(volatile uint8_t TWI_match_addr, uint8_t status);
 
@@ -132,7 +134,7 @@ void handle_I2C_interrupt(volatile uint8_t TWI_match_addr, uint8_t status){
         // and it will be returned during the read cycle
         //(*(int*)I2C_buffer)++;
         // TODO: Query each sensor with address contained in `I2C_buffer`
-        if (TWI_match_addr == 22) return;
+        if (TWI_match_addr !== I2C_SLAVE_ADDRESS) return;
 
         //uint8_t buf[4];
         //inttolitend(result, I2C_buffer);
