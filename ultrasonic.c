@@ -23,6 +23,7 @@ uint8_t I2C_buffer[SENSOR_NUM];
 void handle_I2C_interrupt(volatile uint8_t TWI_match_addr, uint8_t status);
 
 static volatile uint8_t pulse_length[SENSOR_NUM];
+static volatile uint8_t x;
 
 // Measurement Timer Interrupt
 // Counts in centimetres
@@ -96,7 +97,8 @@ int main(void) {
             100000L,                    // desired TWI/IC2 bitrate
             I2C_buffer,                 // pointer to comm buffer
             sizeof(I2C_buffer),         // size of comm buffer
-            &handle_I2C_interrupt       // pointer to callback function
+            0
+            //&handle_I2C_interrupt       // pointer to callback function
             );
 
   sensor_setup();
