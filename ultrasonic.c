@@ -8,10 +8,7 @@
 
 //#define F_CPU			8000000UL
 
-#define SENSOR_NUM 1
-
-#define TRIG_PIN  PB1
-#define ECHO_PIN  PB2
+#define SENSOR_NUM      1
 
 #define TRIG_LENGTH     12 // Trigger pulse length (uS)
 #define US_PER_CM       58 // 58uS / cm
@@ -20,9 +17,20 @@
 // settings for I2C
 uint8_t I2C_buffer[SENSOR_NUM];
 #define I2C_SLAVE_ADDRESS 0x10
-void handle_I2C_interrupt(volatile uint8_t TWI_match_addr, uint8_t status);
+//void handle_I2C_interrupt(volatile uint8_t TWI_match_addr, uint8_t status);
 
 static volatile uint8_t pulse_length[SENSOR_NUM];
+static volatile uint8_t x;
+
+struct Pins {
+   uint8_t pb;
+   uint8_t port;
+   uint8_t pin;
+   //uint8_t isr;
+};
+
+struct Pins trig_pins[SENSOR_NUM];
+struct Pins echo_pins[SENSOR_NUM];
 
 // Measurement Timer Interrupt
 // Counts in centimetres
@@ -34,32 +42,38 @@ ISR(TIMER2_COMPA_vect) {
 
 // Echo Input Interrupt
 // Measures echo length
-// TODO: Macro to define one for each sensor
+// TODO: Macro to define one for each sensor, given interrupt, pins and ports.
+// TODO: Detect each set of echo pins within it's own interrupt
 ISR(PCINT0_vect) {
   // TODO: Detect `changedbits` in each port
   //uint8_t changedbits;
   //changedbits = PINB ^ portbhistory;
   //portbhistory = PINB;
   //if(changedbits & (1 << PINB0))
-
-  // TODO: Detect array of pins from `changedbits`
-  // high
-  if (PINB & _BV(ECHO_PIN)) {  // Pulse start
-    // Leaving timer running for other sensors
-    //TCNT1 = 0;
-    pulse_length[0] = 0;
-  // low
-  } else { // Pulse end
-    I2C_buffer[0] = pulse_length[0];
+  for (x=0; x<SENSOR_NUM; x++) {
+    // high
+    if (echo_pins[x].pin & _BV(echo_pins[x].pb)) {  // Pulse start
+      // Leaving timer running for other sensors
+      //TCNT1 = 0;
+      pulse_length[x] = 0;
+    // low
+    // FIXME: Descriminate from other pins interrupts. Using `changedbits`?
+    } else { // Pulse end
+      I2C_buffer[x] = pulse_length[x];
+    }
   }
 }
 
 void sensor_setup(void) {
   // TODO: Configure array of pins
-  DDRB |= _BV(TRIG_PIN);    // Trig pin is output
-  PORTB &= ~_BV(TRIG_PIN);  // Set Trig to 0
-  DDRB &= ~_BV(ECHO_PIN);   // Sensor pin is input
-  PORTB |= _BV(ECHO_PIN);   // Enable pull-up resistor
+  for (x=0; x<SENSOR_NUM; x++) {
+    DDRB |= _BV(trig_pins[x].pb);    // Trig pin is output
+    trig_pins[x].port &= ~_BV(trig_pins[x].pb);  // Set Trig to 0
+  }
+  for (x=0; x<SENSOR_NUM; x++) {
+    DDRB &= ~_BV(echo_pins[x].pb);   // Sensor pin is input
+    echo_pins[x].port |= _BV(echo_pins[x].pb);   // Enable pull-up resistor
+  }
 
   // Timer 1 configuration
   //TCCR1 = _BV(CTC1) | _BV(CS12); // CTC Mode, Clock = ClkI/O / 8
@@ -76,19 +90,29 @@ void sensor_setup(void) {
   //GIMSK |= _BV(INT0);  // Enable external pin interrupt
 
   // PCINT0
+  // TODO: Enable PCINTs as needed by pins
   PCICR |= _BV(PCIE0);
   PCMSK0 |= _BV(PCINT2);
 }
 
-// TODO: `trigger(port)`
-void trigger(void) {
+void trigger(uint8_t idx) {
   // Trig pulse
-  PORTB |= _BV(TRIG_PIN);
+  trig_pins[idx].port |= _BV(trig_pins[idx].pb);
   _delay_us(TRIG_LENGTH);
-  PORTB &= ~_BV(TRIG_PIN);
+  trig_pins[idx].port &= ~_BV(trig_pins[idx].pb);
 }
 
 int main(void) {
+  // TODO: Put somewhere cleaner
+  trig_pins[0].pb    = PB1;
+  trig_pins[0].port  = PORTB;
+  trig_pins[0].pin   = PINB;
+  //trig_pins[0].isr = PCINT0_vect;
+
+  echo_pins[0].pb    = PB2;
+  echo_pins[0].port  = PORTB;
+  echo_pins[0].pin   = PINB;
+  //echo_pins[0].isr = PCINT0_vect;
 
   // Initialize I2C
   // http://www.nerdkits.com/forum/thread/1554/
@@ -96,7 +120,8 @@ int main(void) {
             100000L,                    // desired TWI/IC2 bitrate
             I2C_buffer,                 // pointer to comm buffer
             sizeof(I2C_buffer),         // size of comm buffer
-            &handle_I2C_interrupt       // pointer to callback function
+            0
+            //&handle_I2C_interrupt       // pointer to callback function
             );
 
   sensor_setup();
@@ -112,7 +137,9 @@ int main(void) {
   // TODO: Timer which triggers sensors in-turn, times them out too.. Use a timer?
   while(1) {
     // TODO: Trigger each pin in array
-    trigger();
+    for (x=0; x<SENSOR_NUM; x++) {
+      trigger(x);
+    }
 
     // Wait for echo
     _delay_ms(MEASURE_TIME_MS);
