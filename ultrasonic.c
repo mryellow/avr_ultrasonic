@@ -8,19 +8,26 @@
 
 //#define F_CPU			8000000UL
 
-#define SENSOR_NUM 1
+#define SENSOR_NUM      8
 
-#define TRIG_PIN  PB1
-#define ECHO_PIN  PB2
+#define TRIG_DDR   DDRD
+#define TRIG_PORT  PORTD
+
+#define ECHO_DDR   DDRB
+#define ECHO_PORT  PORTB
+#define ECHO_PIN   PINB
+#define ECHO_PCIE  PCIE0
+#define ECHO_PCMSK PCMSK0
 
 #define TRIG_LENGTH     12 // Trigger pulse length (uS)
-#define US_PER_CM       58 // 58uS / cm
-#define MEASURE_TIME_MS 50 // Measurement interval
+// Reduce resolution to fit full range within `uint8_t`.
+#define US_PER_CM       58*4 // 58uS / cm
+#define MEASURE_TIME_MS 20 // Measurement interval
 
 // settings for I2C
 uint8_t I2C_buffer[SENSOR_NUM];
 #define I2C_SLAVE_ADDRESS 0x10
-void handle_I2C_interrupt(volatile uint8_t TWI_match_addr, uint8_t status);
+//void handle_I2C_interrupt(volatile uint8_t TWI_match_addr, uint8_t status);
 
 static volatile uint8_t pulse_length[SENSOR_NUM];
 static volatile uint8_t x;
@@ -28,46 +35,58 @@ static volatile uint8_t x;
 // Measurement Timer Interrupt
 // Counts in centimetres
 ISR(TIMER2_COMPA_vect) {
-  for (x=0;x<SENSOR_NUM;x++) {
+  uint8_t x;
+  for (x=0; x<SENSOR_NUM; x++) {
     pulse_length[x]++;
   }
 }
 
 // Echo Input Interrupt
 // Measures echo length
-// TODO: Macro to define one for each sensor
+// https://github.com/borischernov/avr_hcsr04/blob/master/main.c
+volatile uint8_t echoporthistory = 0xFF;
+// TODO: Define which vector matches `ECHO_PORT`.
 ISR(PCINT0_vect) {
-  // TODO: Detect `changedbits` in each port
-  //uint8_t changedbits;
-  //changedbits = PINB ^ portbhistory;
-  //portbhistory = PINB;
-  //if(changedbits & (1 << PINB0))
+  uint8_t changedbits;
+  changedbits = ECHO_PIN ^ echoporthistory;
+  echoporthistory = ECHO_PIN;
 
-  // TODO: Detect array of pins from `changedbits`
-  // high
-  if (PINB & _BV(ECHO_PIN)) {  // Pulse start
-    // Leaving timer running for other sensors
-    //TCNT1 = 0;
-    pulse_length[0] = 0;
-  // low
-  } else { // Pulse end
-    I2C_buffer[0] = pulse_length[0];
+  uint8_t x;
+  for (x=0; x<SENSOR_NUM; x++) {
+    if(changedbits & _BV(x)) {
+      // high
+      if (ECHO_PIN & _BV(x)) {  // Pulse start
+        // Leaving timer running for other sensors
+        //TCNT1 = 0;
+        pulse_length[x] = 0;
+      // low
+      } else { // Pulse end
+        I2C_buffer[x] = pulse_length[x];
+      }
+    }
   }
 }
 
 void sensor_setup(void) {
-  // TODO: Configure array of pins
-  DDRB |= _BV(TRIG_PIN);    // Trig pin is output
-  PORTB &= ~_BV(TRIG_PIN);  // Set Trig to 0
-  DDRB &= ~_BV(ECHO_PIN);   // Sensor pin is input
-  PORTB |= _BV(ECHO_PIN);   // Enable pull-up resistor
+  // Configure ports
+  TRIG_DDR  = 0xFF; // Trig pin is output
+  TRIG_PORT = 0x00; // Set Trig to 0
+  ECHO_DDR  = 0x00; // Sensor pin is input
+  ECHO_PORT = 0xFF; // Enable pull-up resistor
+  /*
+  for (x=0; x<SENSOR_NUM; x++) {
+    TRIG_DDR  |= _BV(x);    // Trig pin is output
+    TRIG_PORT &= ~_BV(x);   // Set Trig to 0
+    ECHO_DDR  &= ~_BV(x);   // Sensor pin is input
+    ECHO_PORT |= _BV(x);    // Enable pull-up resistor
+  }
+  */
 
   // Timer 1 configuration
   //TCCR1 = _BV(CTC1) | _BV(CS12); // CTC Mode, Clock = ClkI/O / 8
-  TCCR2A = _BV(COM2A1) | _BV(WGM21); // Reset OC2A, CTC Mode
+  TCCR2A = _BV(WGM21); // CTC Mode
   TCCR2B = _BV(CS21); // Clock = ClkI/O / 8
   //OCR1C = US_PER_CM - 1;
-  // TODO: Is `US_PER_CM` correct?
   OCR2A = US_PER_CM - 1;
   //TIMSK |= _BV(OCIE1A); // Enable Interrupt TimerCounter1 Compare Match A
   TIMSK2 |= _BV(OCIE2A); // Enable Interrupt TimerCounter2 Compare Match A
@@ -76,21 +95,18 @@ void sensor_setup(void) {
   //MCUCR |= _BV(ISC00); // Interrupt on any logical change on INT0
   //GIMSK |= _BV(INT0);  // Enable external pin interrupt
 
-  // PCINT0
-  PCICR |= _BV(PCIE0);
-  PCMSK0 |= _BV(PCINT2);
-}
-
-// TODO: `trigger(port)`
-void trigger(void) {
-  // Trig pulse
-  PORTB |= _BV(TRIG_PIN);
-  _delay_us(TRIG_LENGTH);
-  PORTB &= ~_BV(TRIG_PIN);
+  // PCINT
+  PCICR |= _BV(ECHO_PCIE);
+  ECHO_PCMSK = 0xFF; // Enable interrupts on PORTB
+  /*
+  uint8_t x;
+  for (x=0; x<SENSOR_NUM; x++) {
+    ECHO_PCMSK |= _BV(x);
+  }
+  */
 }
 
 int main(void) {
-
   // Initialize I2C
   // http://www.nerdkits.com/forum/thread/1554/
   TWI_init( F_CPU,                      // clock frequency
@@ -111,15 +127,23 @@ int main(void) {
                           0                       // enable general call
                           );
 
-  // TODO: Timer which triggers sensors in-turn, times them out too.. Use a timer?
+  // TODO: Triggers sensors in-turn, time them out too.. Use a timer instead?
   while(1) {
-    // TODO: Trigger each pin in array
-    trigger();
+    // Trigger each pin
+    uint8_t x;
+    for (x=0; x<SENSOR_NUM; x++) {
+      TRIG_PORT |= _BV(x);
+      _delay_us(TRIG_LENGTH);
+      TRIG_PORT &= ~_BV(x);
+      //_delay_us(TRIG_LENGTH);
 
-    // Wait for echo
-    _delay_ms(MEASURE_TIME_MS);
+      // Wait for echo before next trigger
+      _delay_ms(MEASURE_TIME_MS/SENSOR_NUM);
+    }
 
   }
+
+  return(0);
 }
 
 /*
