@@ -30,7 +30,6 @@ uint8_t I2C_buffer[SENSOR_NUM];
 //void handle_I2C_interrupt(volatile uint8_t TWI_match_addr, uint8_t status);
 
 static volatile uint8_t pulse_length[SENSOR_NUM];
-static volatile uint8_t x;
 
 // Measurement Timer Interrupt
 // Counts in centimetres
