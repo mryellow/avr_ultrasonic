@@ -70,17 +70,19 @@ ISR(PCINT0_vect) {
 void sensor_setup(void) {
   // Configure ports
   for (x=0; x<SENSOR_NUM; x++) {
+    // TODO: Set matching port register
     DDRB |= _BV(trig_pins[x].p);    // Trig pin is output
     *trig_pins[x].port &= ~_BV(trig_pins[x].p);  // Set Trig to 0
   }
   for (x=0; x<SENSOR_NUM; x++) {
+    // TODO: Set matching port register
     DDRB &= ~_BV(echo_pins[x].p);   // Sensor pin is input
     *echo_pins[x].port |= _BV(echo_pins[x].p);   // Enable pull-up resistor
   }
 
   // Timer 1 configuration
   //TCCR1 = _BV(CTC1) | _BV(CS12); // CTC Mode, Clock = ClkI/O / 8
-  TCCR2A = _BV(COM2A1) | _BV(WGM21); // Reset OC2A, CTC Mode
+  TCCR2A = _BV(WGM21); // CTC Mode
   TCCR2B = _BV(CS21); // Clock = ClkI/O / 8
   //OCR1C = US_PER_CM - 1;
   // TODO: Is `US_PER_CM` correct?
@@ -101,7 +103,7 @@ void sensor_setup(void) {
 }
 
 void trigger(uint8_t idx) {
-  // TODO: Skip if pin is "invalid" (allows sharing of triggers)
+  // TODO: Skip if pin is invalid
   // Trig pulse
   *trig_pins[idx].port |= _BV(trig_pins[idx].p);
   _delay_us(TRIG_LENGTH);
@@ -115,10 +117,11 @@ int main(void) {
   trig_pins[0].pin   = &PINB;
 
   echo_pins[0].p     = PB2;
-  echo_pins[0].pcint = PCINT2;
+  echo_pins[0].pcint = PCINT2; // TODO: Equivilent to PB2?
   echo_pins[0].port  = &PORTB;
   echo_pins[0].pin   = &PINB;
 
+  // TODO: Decouple usage of trigger and echo pins. Put triggers all in a line.
   trig_pins[1].p     = PB3;
   trig_pins[1].port  = &PORTB;
   trig_pins[1].pin   = &PINB;
