@@ -23,7 +23,7 @@ static volatile uint8_t pulse_length[SENSOR_NUM];
 static volatile uint8_t x;
 
 struct Pins {
-   volatile uint8_t pb;
+   volatile uint8_t p;
    volatile uint8_t *port;
    volatile uint8_t *pin;
    //uint8_t isr;
@@ -51,9 +51,9 @@ ISR(PCINT0_vect) {
   portbhistory = PINB;
 
   for (x=0; x<SENSOR_NUM; x++) {
-     if(changedbits & _BV(echo_pins[x].pb)) {
+     if(changedbits & _BV(echo_pins[x].p)) {
        // high
-       if (*echo_pins[x].pin & _BV(echo_pins[x].pb)) {  // Pulse start
+       if (*echo_pins[x].pin & _BV(echo_pins[x].p)) {  // Pulse start
          // Leaving timer running for other sensors
          //TCNT1 = 0;
          pulse_length[x] = 0;
@@ -68,12 +68,12 @@ ISR(PCINT0_vect) {
 void sensor_setup(void) {
   // TODO: Configure array of pins
   for (x=0; x<SENSOR_NUM; x++) {
-    DDRB |= _BV(trig_pins[x].pb);    // Trig pin is output
-    *trig_pins[x].port &= ~_BV(trig_pins[x].pb);  // Set Trig to 0
+    DDRB |= _BV(trig_pins[x].p);    // Trig pin is output
+    *trig_pins[x].port &= ~_BV(trig_pins[x].p);  // Set Trig to 0
   }
   for (x=0; x<SENSOR_NUM; x++) {
-    DDRB &= ~_BV(echo_pins[x].pb);   // Sensor pin is input
-    *echo_pins[x].port |= _BV(echo_pins[x].pb);   // Enable pull-up resistor
+    DDRB &= ~_BV(echo_pins[x].p);   // Sensor pin is input
+    *echo_pins[x].port |= _BV(echo_pins[x].p);   // Enable pull-up resistor
   }
 
   // Timer 1 configuration
@@ -98,29 +98,29 @@ void sensor_setup(void) {
 
 void trigger(uint8_t idx) {
   // Trig pulse
-  *trig_pins[idx].port |= _BV(trig_pins[idx].pb);
+  *trig_pins[idx].port |= _BV(trig_pins[idx].p);
   _delay_us(TRIG_LENGTH);
-  *trig_pins[idx].port &= ~_BV(trig_pins[idx].pb);
+  *trig_pins[idx].port &= ~_BV(trig_pins[idx].p);
 }
 
 int main(void) {
   // TODO: Put somewhere cleaner
-  trig_pins[0].pb    = PB1;
+  trig_pins[0].p     = PB1;
   trig_pins[0].port  = &PORTB;
   trig_pins[0].pin   = &PINB;
   //trig_pins[0].isr = &PCINT0_vect;
 
-  echo_pins[0].pb    = PB2;
+  echo_pins[0].p     = PB2;
   echo_pins[0].port  = &PORTB;
   echo_pins[0].pin   = &PINB;
   //echo_pins[0].isr = &PCINT0_vect;
 
-  trig_pins[1].pb    = PB1;
+  trig_pins[1].p    = PB1;
   trig_pins[1].port  = &PORTB;
   trig_pins[1].pin   = &PINB;
   //trig_pins[1].isr = &PCINT0_vect;
 
-  echo_pins[1].pb    = PB3;
+  echo_pins[1].p    = PB3;
   echo_pins[1].port  = &PORTB;
   echo_pins[1].pin   = &PINB;
   //echo_pins[0].isr = &PCINT0_vect;
