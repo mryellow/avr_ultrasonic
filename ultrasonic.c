@@ -8,7 +8,7 @@
 
 //#define F_CPU			8000000UL
 
-#define SENSOR_NUM      1
+#define SENSOR_NUM      2
 
 #define TRIG_LENGTH     12 // Trigger pulse length (uS)
 #define US_PER_CM       58 // 58uS / cm
@@ -23,9 +23,9 @@ static volatile uint8_t pulse_length[SENSOR_NUM];
 static volatile uint8_t x;
 
 struct Pins {
-   uint8_t pb;
-   uint8_t port;
-   uint8_t pin;
+   volatile uint8_t pb;
+   volatile uint8_t *port;
+   volatile uint8_t *pin;
    //uint8_t isr;
 };
 
@@ -45,22 +45,23 @@ ISR(TIMER2_COMPA_vect) {
 // TODO: Macro to define one for each sensor, given interrupt, pins and ports.
 // TODO: Detect each set of echo pins within it's own interrupt
 ISR(PCINT0_vect) {
-  // TODO: Detect `changedbits` in each port
-  //uint8_t changedbits;
-  //changedbits = PINB ^ portbhistory;
-  //portbhistory = PINB;
-  //if(changedbits & (1 << PINB0))
+  // TODO: Everything within this interrupt vector is PORTB.
+  uint8_t changedbits;
+  changedbits = PINB ^ portbhistory;
+  portbhistory = PINB;
+
   for (x=0; x<SENSOR_NUM; x++) {
-    // high
-    if (echo_pins[x].pin & _BV(echo_pins[x].pb)) {  // Pulse start
-      // Leaving timer running for other sensors
-      //TCNT1 = 0;
-      pulse_length[x] = 0;
-    // low
-    // FIXME: Descriminate from other pins interrupts. Using `changedbits`?
-    } else { // Pulse end
-      I2C_buffer[x] = pulse_length[x];
-    }
+     if(changedbits & _BV(echo_pins[x].pb)) {
+       // high
+       if (*echo_pins[x].pin & _BV(echo_pins[x].pb)) {  // Pulse start
+         // Leaving timer running for other sensors
+         //TCNT1 = 0;
+         pulse_length[x] = 0;
+       // low
+       } else { // Pulse end
+         I2C_buffer[x] = pulse_length[x];
+       }
+     }
   }
 }
 
@@ -68,11 +69,11 @@ void sensor_setup(void) {
   // TODO: Configure array of pins
   for (x=0; x<SENSOR_NUM; x++) {
     DDRB |= _BV(trig_pins[x].pb);    // Trig pin is output
-    trig_pins[x].port &= ~_BV(trig_pins[x].pb);  // Set Trig to 0
+    *trig_pins[x].port &= ~_BV(trig_pins[x].pb);  // Set Trig to 0
   }
   for (x=0; x<SENSOR_NUM; x++) {
     DDRB &= ~_BV(echo_pins[x].pb);   // Sensor pin is input
-    echo_pins[x].port |= _BV(echo_pins[x].pb);   // Enable pull-up resistor
+    *echo_pins[x].port |= _BV(echo_pins[x].pb);   // Enable pull-up resistor
   }
 
   // Timer 1 configuration
@@ -97,22 +98,32 @@ void sensor_setup(void) {
 
 void trigger(uint8_t idx) {
   // Trig pulse
-  trig_pins[idx].port |= _BV(trig_pins[idx].pb);
+  *trig_pins[idx].port |= _BV(trig_pins[idx].pb);
   _delay_us(TRIG_LENGTH);
-  trig_pins[idx].port &= ~_BV(trig_pins[idx].pb);
+  *trig_pins[idx].port &= ~_BV(trig_pins[idx].pb);
 }
 
 int main(void) {
   // TODO: Put somewhere cleaner
   trig_pins[0].pb    = PB1;
-  trig_pins[0].port  = PORTB;
-  trig_pins[0].pin   = PINB;
-  //trig_pins[0].isr = PCINT0_vect;
+  trig_pins[0].port  = &PORTB;
+  trig_pins[0].pin   = &PINB;
+  //trig_pins[0].isr = &PCINT0_vect;
 
   echo_pins[0].pb    = PB2;
-  echo_pins[0].port  = PORTB;
-  echo_pins[0].pin   = PINB;
-  //echo_pins[0].isr = PCINT0_vect;
+  echo_pins[0].port  = &PORTB;
+  echo_pins[0].pin   = &PINB;
+  //echo_pins[0].isr = &PCINT0_vect;
+
+  trig_pins[1].pb    = PB1;
+  trig_pins[1].port  = &PORTB;
+  trig_pins[1].pin   = &PINB;
+  //trig_pins[1].isr = &PCINT0_vect;
+
+  echo_pins[1].pb    = PB3;
+  echo_pins[1].port  = &PORTB;
+  echo_pins[1].pin   = &PINB;
+  //echo_pins[0].isr = &PCINT0_vect;
 
   // Initialize I2C
   // http://www.nerdkits.com/forum/thread/1554/
