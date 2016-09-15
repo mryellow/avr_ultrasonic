@@ -44,6 +44,7 @@ ISR(TIMER2_COMPA_vect) {
 // Measures echo length
 // TODO: Macro to define one for each sensor, given interrupt, pins and ports.
 // TODO: Detect each set of echo pins within it's own interrupt
+uint8_t portbhistory;
 ISR(PCINT0_vect) {
   // TODO: Everything within this interrupt vector is PORTB.
   uint8_t changedbits;
