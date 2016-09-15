@@ -20,8 +20,9 @@
 #define ECHO_PCMSK PCMSK0
 
 #define TRIG_LENGTH     12 // Trigger pulse length (uS)
-#define US_PER_CM       58 // 58uS / cm
-#define MEASURE_TIME_MS 50 // Measurement interval
+// Reduce resolution to fit full range within `uint8_t`.
+#define US_PER_CM       58*4 // 58uS / cm
+#define MEASURE_TIME_MS 20 // Measurement interval
 
 // settings for I2C
 uint8_t I2C_buffer[SENSOR_NUM];
@@ -85,7 +86,6 @@ void sensor_setup(void) {
   TCCR2A = _BV(WGM21); // CTC Mode
   TCCR2B = _BV(CS21); // Clock = ClkI/O / 8
   //OCR1C = US_PER_CM - 1;
-  // TODO: Is `US_PER_CM` correct?
   OCR2A = US_PER_CM - 1;
   //TIMSK |= _BV(OCIE1A); // Enable Interrupt TimerCounter1 Compare Match A
   TIMSK2 |= _BV(OCIE2A); // Enable Interrupt TimerCounter2 Compare Match A
