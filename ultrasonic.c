@@ -21,7 +21,12 @@
 
 #define TRIG_LENGTH     12 // Trigger pulse length (uS)
 // Reduce resolution to fit full range within `uint8_t`.
-#define US_PER_CM       58*4 // 58uS / cm
+// 255 * 1.0cm = 2.55m
+// 255 * 1.5cm = 3.825m = 87uS/cm
+// 255 * 1.56862745098cm = 4m
+// 255 * 2.0cm = 5.10m
+#define CM_PER_IT       1.5
+#define US_PER_CM       58*CM_PER_IT // 58uS / cm
 #define MEASURE_TIME_MS 20 // Measurement interval
 
 // settings for I2C
