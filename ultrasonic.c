@@ -61,36 +61,40 @@ void check_echo(volatile uint8_t port, uint8_t pin, uint8_t sensor) {
   }
 }
 
+volatile uint8_t echoportbhistory = 0xFF;
 ISR(PCINT0_vect) {
+  uint8_t changedbits;
+  changedbits = PINB ^ echoportbhistory;
+  echoportbhistory = PINB;
+
+  uint8_t x;
+  for (x=0; x<5; x++) {
+    if(changedbits & _BV(x)) {
+      check_echo(PINB, x, x);
+    }
+  }
+
   check_echo(PINB, 0, 0);
-}
-
-ISR(PCINT1_vect) {
   check_echo(PINB, 1, 1);
-}
-
-ISR(PCINT2_vect) {
   check_echo(PINB, 2, 2);
-}
-
-ISR(PCINT3_vect) {
   check_echo(PINB, 3, 3);
-}
-
-ISR(PCINT4_vect) {
   check_echo(PINB, 4, 4);
-}
-
-ISR(PCINT5_vect) {
   check_echo(PINB, 5, 5);
+
 }
 
-ISR(PCINT8_vect) {
-  check_echo(PINC, 0, 6);
-}
+volatile uint8_t echoportchistory = 0xFF;
+ISR(PCINT1_vect) {
+  uint8_t changedbits;
+  changedbits = PINC ^ echoportchistory;
+  echoportchistory = PINC;
 
-ISR(PCINT9_vect) {
-  check_echo(PINC, 1, 7);
+  if(changedbits & _BV(0)) {
+    check_echo(PINC, 0, 6);
+  }
+  if(changedbits & _BV(1)) {
+    check_echo(PINC, 1, 7);
+  }
 }
 
 /*
@@ -131,7 +135,7 @@ void sensor_setup(void) {
   PORTC |= _BV(0) & _BV(1);
 
   // Interrupt on any logical change
-  PCICR |= _BV(PCIE0) & _BV(PCIE1) ;
+  PCICR |= _BV(PCIE0) & _BV(PCIE1);
 
   // Enable external pin interrupt
   PCMSK0 |= _BV(0) & _BV(1) & _BV(2) & _BV(3) & _BV(4) & _BV(5);
