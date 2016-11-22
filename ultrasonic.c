@@ -13,11 +13,11 @@
 #define TRIG_DDR   DDRD
 #define TRIG_PORT  PORTD
 
-#define ECHO_DDR   DDRB
-#define ECHO_PORT  PORTB
-#define ECHO_PIN   PINB
-#define ECHO_PCIE  PCIE0
-#define ECHO_PCMSK PCMSK0
+//#define ECHO_DDR   DDRB
+//#define ECHO_PORT  PORTB
+//#define ECHO_PIN   PINB
+//#define ECHO_PCIE  PCIE0
+//#define ECHO_PCMSK PCMSK0
 
 #define TRIG_LENGTH     12 // Trigger pulse length (uS)
 // Reduce resolution to fit full range within `uint8_t`.
@@ -48,8 +48,53 @@ ISR(TIMER2_COMPA_vect) {
 // Echo Input Interrupt
 // Measures echo length
 // https://github.com/borischernov/avr_hcsr04/blob/master/main.c
+
+void check_echo(volatile uint8_t port, uint8_t pin, uint8_t sensor) {
+  // high
+  if (port & _BV(pin)) {  // Pulse start
+    // Leaving timer running for other sensors
+    //TCNT1 = 0;
+    pulse_length[sensor] = 0;
+  // low
+  } else { // Pulse end
+    I2C_buffer[sensor] = pulse_length[sensor];
+  }
+}
+
+ISR(PCINT0_vect) {
+  check_echo(PINB, 0, 0);
+}
+
+ISR(PCINT1_vect) {
+  check_echo(PINB, 1, 1);
+}
+
+ISR(PCINT2_vect) {
+  check_echo(PINB, 2, 2);
+}
+
+ISR(PCINT3_vect) {
+  check_echo(PINB, 3, 3);
+}
+
+ISR(PCINT4_vect) {
+  check_echo(PINB, 4, 4);
+}
+
+ISR(PCINT5_vect) {
+  check_echo(PINB, 5, 5);
+}
+
+ISR(PCINT8_vect) {
+  check_echo(PINC, 0, 6);
+}
+
+ISR(PCINT9_vect) {
+  check_echo(PINC, 1, 7);
+}
+
+/*
 volatile uint8_t echoporthistory = 0xFF;
-// TODO: Define which vector matches `ECHO_PORT`.
 ISR(PCINT0_vect) {
   uint8_t changedbits;
   changedbits = ECHO_PIN ^ echoporthistory;
@@ -70,13 +115,28 @@ ISR(PCINT0_vect) {
     }
   }
 }
+*/
 
 void sensor_setup(void) {
   // Configure ports
   TRIG_DDR  = 0xFF; // Trig pin is output
   TRIG_PORT = 0x00; // Set Trig to 0
-  ECHO_DDR  = 0x00; // Sensor pin is input
-  ECHO_PORT = 0xFF; // Enable pull-up resistor
+
+  // Sensor pin is input
+  DDRB &= ~_BV(0) & ~_BV(1) & ~_BV(2) & ~_BV(3) & ~_BV(4) & ~_BV(5);
+  DDRC &= ~_BV(0) & ~_BV(1);
+
+  // Enable pull-up resistor
+  PORTB |= _BV(0) & _BV(1) & _BV(2) & _BV(3) & _BV(4) & _BV(5);
+  PORTC |= _BV(0) & _BV(1);
+
+  // Interrupt on any logical change
+  PCICR |= _BV(PCIE0) & _BV(PCIE1) ;
+
+  // Enable external pin interrupt
+  PCMSK0 |= _BV(0) & _BV(1) & _BV(2) & _BV(3) & _BV(4) & _BV(5);
+  PCMSK1 |= _BV(0) & _BV(1);
+
   /*
   for (x=0; x<SENSOR_NUM; x++) {
     TRIG_DDR  |= _BV(x);    // Trig pin is output
@@ -100,8 +160,8 @@ void sensor_setup(void) {
   //GIMSK |= _BV(INT0);  // Enable external pin interrupt
 
   // PCINT
-  PCICR |= _BV(ECHO_PCIE);
-  ECHO_PCMSK = 0xFF; // Enable interrupts on PORTB
+  //PCICR |= _BV(ECHO_PCIE);
+  //ECHO_PCMSK = 0xFF; // Enable interrupts on PORTB
   /*
   uint8_t x;
   for (x=0; x<SENSOR_NUM; x++) {
