@@ -74,13 +74,6 @@ ISR(PCINT0_vect) {
     }
   }
 
-  check_echo(PINB, 0, 0);
-  check_echo(PINB, 1, 1);
-  check_echo(PINB, 2, 2);
-  check_echo(PINB, 3, 3);
-  check_echo(PINB, 4, 4);
-  check_echo(PINB, 5, 5);
-
 }
 
 volatile uint8_t echoportchistory = 0xFF;
@@ -131,15 +124,15 @@ void sensor_setup(void) {
   DDRC &= ~_BV(0) & ~_BV(1);
 
   // Enable pull-up resistor
-  PORTB |= _BV(0) & _BV(1) & _BV(2) & _BV(3) & _BV(4) & _BV(5);
-  PORTC |= _BV(0) & _BV(1);
+  PORTB |= _BV(0) | _BV(1) | _BV(2) | _BV(3) | _BV(4) | _BV(5);
+  PORTC |= _BV(0) | _BV(1);
 
   // Interrupt on any logical change
-  PCICR |= _BV(PCIE0) & _BV(PCIE1);
+  PCICR |= _BV(PCIE0) | _BV(PCIE1);
 
   // Enable external pin interrupt
-  PCMSK0 |= _BV(0) & _BV(1) & _BV(2) & _BV(3) & _BV(4) & _BV(5);
-  PCMSK1 |= _BV(0) & _BV(1);
+  PCMSK0 |= _BV(0) | _BV(1) | _BV(2) | _BV(3) | _BV(4) | _BV(5);
+  PCMSK1 |= _BV(0) | _BV(1);
 
   /*
   for (x=0; x<SENSOR_NUM; x++) {
