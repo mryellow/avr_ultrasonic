@@ -49,9 +49,9 @@ ISR(TIMER2_COMPA_vect) {
 // Measures echo length
 // https://github.com/borischernov/avr_hcsr04/blob/master/main.c
 
-void check_echo(volatile uint8_t port, uint8_t pin, uint8_t sensor) {
+void check_echo(volatile uint8_t *port, uint8_t pin, uint8_t sensor) {
   // high
-  if (port & _BV(pin)) {  // Pulse start
+  if (*port & _BV(pin)) {  // Pulse start
     // Leaving timer running for other sensors
     //TCNT1 = 0;
     pulse_length[sensor] = 0;
@@ -70,7 +70,7 @@ ISR(PCINT0_vect) {
   uint8_t x;
   for (x=0; x<5; x++) {
     if(changedbits & _BV(x)) {
-      check_echo(PINB, x, x);
+      check_echo(&PINB, x, x);
     }
   }
 
@@ -83,10 +83,10 @@ ISR(PCINT1_vect) {
   echoportchistory = PINC;
 
   if(changedbits & _BV(0)) {
-    check_echo(PINC, 0, 6);
+    check_echo(&PINC, 0, 6);
   }
   if(changedbits & _BV(1)) {
-    check_echo(PINC, 1, 7);
+    check_echo(&PINC, 1, 7);
   }
 }
 
