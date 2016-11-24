@@ -199,7 +199,8 @@ int main(void) {
       //_delay_us(TRIG_LENGTH);
 
       // Wait for echo before next trigger
-      _delay_ms(MEASURE_TIME_MS/SENSOR_NUM);
+      //_delay_ms(MEASURE_TIME_MS/SENSOR_NUM);
+      _delay_ms(MEASURE_TIME_MS);
     }
 
   }
